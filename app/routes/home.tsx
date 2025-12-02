@@ -2,6 +2,45 @@
 import { useEffect, useState } from 'react';
 import '../app.css';
 
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('MilkTrackerDB', 1);
+
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('milk')) {
+                db.createObjectStore('milk', { keyPath: 'id' });
+            }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function saveToDB(data) {
+    const db = await openDB();
+    const tx = db.transaction('milk', 'readwrite');
+    const store = tx.objectStore('milk');
+    store.put({ id: 'month-data', ...data });
+    return tx.complete;
+}
+
+async function loadFromDB() {
+    const db = await openDB();
+    return new Promise(resolve => {
+        const tx = db.transaction('milk', 'readonly');
+        const store = tx.objectStore('milk');
+        const request = store.get('month-data');
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+    });
+}
+
+// -----------------------------
+// Main App Component
+// -----------------------------
 export default function Home() {
     const daysInMonth = 31;
 
@@ -16,23 +55,24 @@ export default function Home() {
         })),
     );
 
-    // Load saved data
+    // -----------------------------
+    // Load from IndexedDB on start
+    // -----------------------------
     useEffect(() => {
-        const saved = localStorage.getItem('milk-tracker-data');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            setCowPrice(parsed.cowPrice || '');
-            setBuffPrice(parsed.buffPrice || '');
-            setEntries(parsed.entries || entries);
-        }
+        loadFromDB().then(saved => {
+            if (saved) {
+                setCowPrice(saved.cowPrice || '');
+                setBuffPrice(saved.buffPrice || '');
+                setEntries(saved.entries || entries);
+            }
+        });
     }, []);
 
-    // Auto-save
+    // -----------------------------
+    // Save to IndexedDB whenever data changes
+    // -----------------------------
     useEffect(() => {
-        localStorage.setItem(
-            'milk-tracker-data',
-            JSON.stringify({ cowPrice, buffPrice, entries }),
-        );
+        saveToDB({ cowPrice, buffPrice, entries });
     }, [cowPrice, buffPrice, entries]);
 
     const updateQty = (index, field, value) => {
