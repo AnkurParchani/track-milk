@@ -1,9 +1,9 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import '../app.css';
 
 export default function Home() {
-    const daysInMonth = 31; // simple fixed month
+    const daysInMonth = 31;
 
     const [cowPrice, setCowPrice] = useState('');
     const [buffPrice, setBuffPrice] = useState('');
@@ -15,6 +15,25 @@ export default function Home() {
             buffQty: '',
         })),
     );
+
+    // Load saved data
+    useEffect(() => {
+        const saved = localStorage.getItem('milk-tracker-data');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            setCowPrice(parsed.cowPrice || '');
+            setBuffPrice(parsed.buffPrice || '');
+            setEntries(parsed.entries || entries);
+        }
+    }, []);
+
+    // Auto-save
+    useEffect(() => {
+        localStorage.setItem(
+            'milk-tracker-data',
+            JSON.stringify({ cowPrice, buffPrice, entries }),
+        );
+    }, [cowPrice, buffPrice, entries]);
 
     const updateQty = (index, field, value) => {
         const updated = [...entries];
@@ -35,11 +54,11 @@ export default function Home() {
     const grandTotal = totalCow + totalBuff;
 
     return (
-        <div className="min-h-screen bg-gray-100 p-4 flex flex-col items-center">
+        <div className="min-h-screen p-4 flex flex-col items-center bg-white text-black">
             <h1 className="text-2xl font-bold mb-4">Monthly Milk Tracker</h1>
 
-            {/* PRICES SECTION */}
-            <div className="bg-white p-4 rounded-xl shadow w-full max-w-xl mb-5">
+            {/* PRICE FIELDS */}
+            <div className="bg-white p-4 rounded-xl shadow w-full max-w-xl mb-5 border">
                 <h2 className="font-semibold text-lg mb-3">
                     Milk Prices (per Liter)
                 </h2>
@@ -63,7 +82,7 @@ export default function Home() {
             </div>
 
             {/* TABLE */}
-            <div className="bg-white p-4 rounded-xl shadow w-full max-w-3xl">
+            <div className="bg-white p-4 rounded-xl shadow w-full max-w-3xl border">
                 <table className="w-full border-collapse text-sm">
                     <thead>
                         <tr className="bg-gray-200">
@@ -73,6 +92,7 @@ export default function Home() {
                             <th className="border p-2">Total (₹)</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         {entries.map((e, i) => (
                             <tr key={i}>
