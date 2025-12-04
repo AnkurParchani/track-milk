@@ -38,39 +38,37 @@ async function loadFromDB() {
     });
 }
 
-// -----------------------------
-// Main App Component
-// -----------------------------
+async function clearDB() {
+    const db = await openDB();
+    const tx = db.transaction('milk', 'readwrite');
+    const store = tx.objectStore('milk');
+    store.delete('month-data');
+    return tx.complete;
+}
+
 export default function Home() {
     const daysInMonth = 31;
 
+    const emptyEntries = Array.from({ length: daysInMonth }, (_, i) => ({
+        day: i + 1,
+        cowQty: '',
+        buffQty: '',
+    }));
+
     const [cowPrice, setCowPrice] = useState('');
     const [buffPrice, setBuffPrice] = useState('');
+    const [entries, setEntries] = useState(emptyEntries);
 
-    const [entries, setEntries] = useState(
-        Array.from({ length: daysInMonth }, (_, i) => ({
-            day: i + 1,
-            cowQty: '',
-            buffQty: '',
-        })),
-    );
-
-    // -----------------------------
-    // Load from IndexedDB on start
-    // -----------------------------
     useEffect(() => {
         loadFromDB().then(saved => {
             if (saved) {
                 setCowPrice(saved.cowPrice || '');
                 setBuffPrice(saved.buffPrice || '');
-                setEntries(saved.entries || entries);
+                setEntries(saved.entries || emptyEntries);
             }
         });
     }, []);
 
-    // -----------------------------
-    // Save to IndexedDB whenever data changes
-    // -----------------------------
     useEffect(() => {
         saveToDB({ cowPrice, buffPrice, entries });
     }, [cowPrice, buffPrice, entries]);
@@ -79,6 +77,14 @@ export default function Home() {
         const updated = [...entries];
         updated[index][field] = value;
         setEntries(updated);
+    };
+
+    // 🔥 RESET ALL BUTTON ACTION
+    const handleReset = async () => {
+        setCowPrice('');
+        setBuffPrice('');
+        setEntries(emptyEntries);
+        await clearDB();
     };
 
     const totalCow = entries.reduce(
@@ -188,6 +194,16 @@ export default function Home() {
                     <p className="font-bold text-lg mt-2">
                         Grand Total: ₹{grandTotal}
                     </p>
+                </div>
+
+                {/* 🔥 RESET BUTTON */}
+                <div className="flex justify-end px-4">
+                    <button
+                        className="mt-4 px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600"
+                        onClick={handleReset}
+                    >
+                        Reset All
+                    </button>
                 </div>
             </div>
         </div>
